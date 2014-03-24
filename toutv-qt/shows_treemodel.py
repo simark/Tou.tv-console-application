@@ -122,13 +122,17 @@ class LoadingItem:
 				return ""
 
 class ShowsTreeModelShow:
-	def __init__(self, name):
+	def __init__(self, name, row_in_parent):
 		self.name = name
 		self.seasons = []
 		self.loading_item = LoadingItem(self)
+		self.row_in_parent = row_in_parent
 
 		# Have we fetched this show's seasons?
 		self.fetched = FetchState.Nope
+
+	def __repr__(self):
+		return "<Model of show %s>" % (self.name)
 
 	def data(self, index, role):
 		column = index.column()
@@ -144,10 +148,11 @@ class ShowsTreeModelShow:
 
 
 class ShowsTreeModelSeason:
-	def __init__(self, number):
+	def __init__(self, number, row_in_parent):
 		self.number = number
 		self.episodes = []
 		self.loading_item = LoadingItem(self)
+		self.row_in_parent = row_in_parent
 
 		# Have we fetched this season's episodes?
 		self.fetched = FetchState.Nope
@@ -165,10 +170,11 @@ class ShowsTreeModelSeason:
 			return "?"
 
 class ShowsTreeModelEpisode:
-	def __init__(self, name, number):
+	def __init__(self, name, number, row_in_parent):
 		self.name = name
 		self.number = number
 		self.loading_item = LoadingItem(self)
+		self.row_in_parent = row_in_parent
 
 	def data(self, index, role):
 		column = index.column()
@@ -243,21 +249,23 @@ class ShowsTreeModel(Qt.QAbstractItemModel):
 			return Qt.QModelIndex()
 
 		elif type(child.internalPointer()) == ShowsTreeModelSeason:
-			season = child.internalPointer()
-			row = season.show.seasons.index(season)
+			show = child.internalPointer().show
+			row = show.row_in_parent
 
-			return self.createIndex(row, 0, season.show)
+			return self.createIndex(row, 0, show)
 
 		elif type(child.internalPointer()) == ShowsTreeModelEpisode:
-			episode = child.internalPointer()
-			row = episode.season.episodes.index(episode)
+			season = child.internalPointer().season
+			row = season.row_in_parent
 
-			return self.createIndex(row, 0, episode.season)
+			return self.createIndex(row, 0, season)
+
 		elif type(child.internalPointer()) == LoadingItem:
 			loading_item = child.internalPointer()
 			if loading_item.parent is not None:
 				return self.createIndex(0, 0, loading_item.parent)
 			else:
+				# Loading item in the root
 				return Qt.QModelIndex()
 
 		return Qt.QModelIndex()
@@ -308,14 +316,26 @@ class ShowsTreeModel(Qt.QAbstractItemModel):
 	def fetchDone(self, parent, children_list):
 		"""A fetch work is complete."""
 		print("fetchDone for %s" % (parent.internalPointer()))
-		self.beginInsertRows(parent, 0, len(children_list) - 1)
-
+		# Mark fetched as Done, we stop showing "Loading"
+		print("Pof")
 		if parent.isValid():
-			parent.internalPointer().set_children(children_list)
 			parent.internalPointer().fetched = FetchState.Done
 		else:
-			self.shows = children_list
 			self.fetched = FetchState.Done
+		print("Puf")
+
+		self.beginRemoveRows(parent, 0, 0)
+		self.endRemoveRows()
+
+		self.beginInsertRows(parent, 0, len(children_list) - 1)
+
+		print("Pif")
+		if parent.isValid():
+			parent.internalPointer().lol_set_children(children_list)
+		else:
+			self.shows = children_list
+		print("Paf")
+
 		self.endInsertRows()
 		pass
 
@@ -354,8 +374,8 @@ class ShowsTreeModelFetchThread(Qt.QThread):
 	def fetch_shows(self, parent):
 		shows = self.datasource.get_shows()
 		shows_ret = []
-		for show in shows:
-			shows_ret.append(ShowsTreeModelShow(show.name))
+		for (i, show) in enumerate(shows):
+			shows_ret.append(ShowsTreeModelShow(show.name, i))
 		self.work_done.emit(parent, shows_ret)
 
 	def fetch_seasons(self, parent):
@@ -363,8 +383,10 @@ class ShowsTreeModelFetchThread(Qt.QThread):
 		seasons = self.datasource.get_season_for(show.name)
 		seasons_ret = []
 		print("A")
-		for s in seasons:
-			seasons_ret.append(ShowsTreeModelSeason(s.number))
+		for (i, s) in enumerate(seasons):
+			new_season = ShowsTreeModelSeason(s.number, i)
+			new_season.show = show
+			seasons_ret.append(new_season)
 		print("B")
 		self.work_done.emit(parent, seasons_ret)
 
@@ -375,15 +397,21 @@ class ShowsTreeModelFetchThread(Qt.QThread):
 	def run(self):
 		while True:
 			parent = self.queue.get()
-			print("Processing work piece for %s" % parent.internalPointer())
+			#print("Processing work piece for %s" % parent.internalPointer())
+			print("Processing... %s %s" % (parent.internalPointer(), parent.isValid()))
 			if not parent.isValid():
+				print("ICI")
 				self.fetch_shows(parent)
 			elif type(parent.internalPointer()) == ShowsTreeModelShow:
 				print("C")
 				self.fetch_seasons(parent)
 				print("D")
 			elif type(parent.internalPointer()) == ShowsTreeModelSeason:
+				print("EEE")
 				self.fetch_episodes(parent)
+			else:
+				print("Nothing")
+			print("Done processing")
 
 
 
