@@ -6,7 +6,7 @@ from PyQt4 import Qt
 from toutvqt.emissions_treemodel import EmissionsTreeModel, FakeDataSource
 
 
-TOUTV_UI_FILE = resource_filename(__name__, 'dat/toutv.ui')
+TOUTV_UI_FILE = resource_filename(__name__, 'dat/main_window.ui')
 
 
 class TouTvQt(Qt.QApplication):
@@ -17,7 +17,7 @@ class TouTvQt(Qt.QApplication):
         """Setup signal/slot connections"""
         self.mainwindow = mainwindow
 
-        self.mainwindow.action_quit.triggered.connect(self.closeAllWindows)
+        self.mainwindow.quit_action.triggered.connect(self.closeAllWindows)
 
         xml_path = resource_filename(__name__, 'dat/fakedata.xml')
         data = FakeDataSource(xml_path)
