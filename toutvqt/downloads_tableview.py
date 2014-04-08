@@ -64,7 +64,13 @@ class QDownloadsTableView(Qt.QTreeView):
         self.customContextMenuRequested.connect(self._on_context_menu)
 
     def _setup(self, model):
-        self.setModel(model)
+        self._real_model = model
+
+        self._sort_filter_model = Qt.QSortFilterProxyModel(self)
+        self._sort_filter_model.setSourceModel(self._real_model)
+
+        self.setModel(self._sort_filter_model)
+        self.setSortingEnabled(True)
         self._setup_context_menu()
 
     def _arrange_context_menu(self, dl_item_state):
@@ -81,7 +87,9 @@ class QDownloadsTableView(Qt.QTreeView):
         if not index.isValid():
             return
 
-        dl_item = self.model().get_download_item_at_row(index.row())
+        index = self.model().mapToSource(index)
+
+        dl_item = self._real_model.get_download_item_at_row(index.row())
 
         self._arrange_context_menu(dl_item.get_state())
         action = self._context_menu.exec(Qt.QCursor.pos())
@@ -96,9 +104,9 @@ class QDownloadsTableView(Qt.QTreeView):
             url = Qt.QUrl('file://{}'.format(output_dir))
             Qt.QDesktopServices.openUrl(url)
         elif action is self._cancel_action:
-            self.model().cancel_download_at_row(index.row())
+            self._real_model.cancel_download_at_row(index.row())
         elif action is self._remove_item_action:
-            self.model().remove_item_at_row(index.row())
+            self._real_model.remove_item_at_row(index.row())
 
     def set_default_columns_widths(self):
         pass
