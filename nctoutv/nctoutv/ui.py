@@ -467,12 +467,18 @@ class _ShowsList(_BasicList):
         super(_ShowsList, self).__init__('Shows', 'Loading shows...')
         self._app = app
         self._marked = None
+        self._loading = False
+        self._app.subscribe('new-shows', self._new_shows)
 
     def _focus_changed(self, item):
         self._app.publish('show-focused', item.show)
 
     def _item_selected(self, item):
+        self._loading = True
         self._app._send_get_episodes_request(item.show)
+
+    def _new_shows(self, shows):
+        self._loading = False
 
     def mark(self):
         self._app._logger.debug("Trying to mark {}".format(self._list.focus))
@@ -545,7 +551,8 @@ class _EpisodesBrowser(urwid.Columns):
         self._shows_list.set_content(shows_items)
 
     def _keypress_shows(self, size, key):
-        return self._shows_list.keypress(size, key)
+        if not self._shows_list._loading:
+            return self._shows_list.keypress(size, key)
 
     def _keypress_episodes(self, size, key):
         return self._episodes_list.keypress(size, key)
