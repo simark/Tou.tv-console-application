@@ -407,7 +407,7 @@ class _BasicList(urwid.LineBox):
         pass
 
     def keypress(self, size, key):
-        if key in ['enter']:
+        if key in ['enter', 'right']:
             self._item_selected(self._list.focus.original_widget)
             return None
 
