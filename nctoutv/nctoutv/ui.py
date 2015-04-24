@@ -468,7 +468,7 @@ class _ShowsList(_BasicList):
         self._app = app
         self._marked = None
         self._loading = False
-        self._app.subscribe('new-shows', self._new_shows)
+        self._app.subscribe('new-episodes', self._new_episodes)
 
     def _focus_changed(self, item):
         self._app.publish('show-focused', item.show)
@@ -477,7 +477,7 @@ class _ShowsList(_BasicList):
         self._loading = True
         self._app._send_get_episodes_request(item.show)
 
-    def _new_shows(self, shows):
+    def _new_episodes(self, show, episodes):
         self._loading = False
 
     def mark(self):
@@ -544,6 +544,12 @@ class _EpisodesBrowser(urwid.Columns):
 
         self._focus_episodes()
 
+    def _back_to_shows(self):
+        self._episodes_list.show_inactive_text()
+        self._focus_shows()
+        # TODO: We probably want to publish a show-focused signal here
+        # to update info displays.
+
     def _new_shows(self, shows):
         self._app._logger.debug('New shows')
         shows = sorted(shows.values(), key=lambda e: e.get_title())
@@ -555,6 +561,10 @@ class _EpisodesBrowser(urwid.Columns):
             return self._shows_list.keypress(size, key)
 
     def _keypress_episodes(self, size, key):
+        if key in ['left', 'esc']:
+            self._back_to_shows()
+            return None
+
         return self._episodes_list.keypress(size, key)
 
     def keypress(self, size, key):
