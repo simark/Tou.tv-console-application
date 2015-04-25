@@ -602,7 +602,9 @@ class _BottomPane(urwid.LineBox):
         self._pages['downloads'] = (txt, 'Downloads')
 
     def show_page(self, page_name):
-        if page_name in self._pages:
+        if page_name is None:
+            self._wrap.original_widget = None
+        elif page_name in self._pages:
             page = self._pages[page_name]
             self.set_title(page[1])
             self._wrap.original_widget = page[0]
@@ -659,6 +661,23 @@ class _AppBody(urwid.Pile):
         self._bottom_pane = _BottomPane(app)
         super(_AppBody, self).__init__([('weight', 1, self._episodes_browser),
                                         ('weight', 1, self._bottom_pane)])
+
+    def _hide_bottom_pane(self):
+        self.contents[1] = (self._bottom_pane, ('weight', 0))
+
+    def _show_bottom_pane(self, page_name):
+        self.contents[1] = (self._bottom_pane, ('weight', 1))
+        self._bottom_pane.show_page(page_name)
+
+    def keypress(self, size, key):
+        if key in ['f1']:
+            self._hide_bottom_pane()
+        elif key in ['f2']:
+            self._show_bottom_pane('info')
+        elif key in ['f3']:
+            self._show_bottom_pane('downloads')
+        else:
+            return super().keypress(size, key)
 
     @property
     def bottom_pane(self):
