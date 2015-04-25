@@ -524,6 +524,8 @@ class _EpisodesBrowser(urwid.Columns):
     def _focus_shows(self):
         self.focus_position = 0
         self._shows_list.unmark()
+        # This is horrible.
+        self._shows_list._focus_changed(self._shows_list._list.focus.original_widget)
 
     def _in_shows(self):
         return self.focus_position == 0
@@ -613,19 +615,49 @@ class _InfoPane(urwid.Filler):
     def __init__(self, app):
         self._app = app
         self._app.subscribe('show-focused', self._show_focused)
+        self._app.subscribe('episode-focused', self._episode_focused)
         self._text = urwid.Text('Nothing selected')
         super().__init__(self._text, valign='top')
 
     def _show_focused(self, show):
-        self._text.set_text(str(show))
+        network = show.get_network()
 
+        if network is None:
+            network = 'unknown'
+
+        country = show.get_country()
+
+        if country is None:
+            country = 'unknown'
+
+        year = show.get_year()
+        year_markup = []
+
+        if year is not None:
+            year_markup = ['(', year, ')']
+
+        markup = [
+            ('show-info-title', show.get_title())
+        ]
+        markup += year_markup
+        markup += [
+            '\n',
+            ('show-info', 'Network'), ': ', network, '\n',
+            ('show-info', 'Country'), ': ', country, '\n',
+            '\n',
+            show.get_description(),
+        ]
+        self._text.set_text(markup)
+
+    def _episode_focused(self, episode):
+        self._text.set_text(str(episode))
 
 class _AppBody(urwid.Pile):
     def __init__(self, app):
         self._app = app
         self._episodes_browser = _EpisodesBrowser(app)
         self._bottom_pane = _BottomPane(app)
-        super(_AppBody, self).__init__([('weight', 3, self._episodes_browser),
+        super(_AppBody, self).__init__([('weight', 1, self._episodes_browser),
                                         ('weight', 1, self._bottom_pane)])
 
     @property
