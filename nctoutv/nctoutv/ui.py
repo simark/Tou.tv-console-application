@@ -390,6 +390,7 @@ class _BasicList(urwid.LineBox):
         self._walker.clear()
         self._walker.extend(content)
         self._show_list()
+        self._list.focus_position = 0
         self._focus_changed(self._list.focus.original_widget)
 
     def _show_list(self):
