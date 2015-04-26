@@ -42,6 +42,7 @@ class _EnhancedListBox(urwid.ListBox):
 """
 
 class _EpisodesContents(urwid.WidgetWrap):
+
     def __init__(self):
         self._episodes_widgets = []
         self._build_listbox()
@@ -377,12 +378,13 @@ class _EnhancedListBox(urwid.ListBox):
 class _BasicList(urwid.LineBox):
     '''Base for Shows and Episodes lists'''
 
-    def __init__(self, title, inactive_text):
+    def __init__(self, title, inactive_text, search_provider=None):
         self._walker = urwid.SimpleListWalker([])
         self._list = _EnhancedListBox(self._walker)
         self._inactive_text = urwid.Filler(urwid.Text(inactive_text,
                                                       align='center'))
         self._wrap = urwid.WidgetPlaceholder(self._inactive_text)
+        self._search_provider = search_provider
         super(_BasicList, self).__init__(self._wrap, title=title)
 
     def set_content(self, content):
@@ -410,6 +412,10 @@ class _BasicList(urwid.LineBox):
     def keypress(self, size, key):
         if key in ['enter', 'right']:
             self._item_selected(self._list.focus.original_widget)
+            return None
+        elif key in ['/'] and self._search_provider is not None:
+            self._app._logger.debug('Should initiate search')
+            self._search_provider.init_search(self)
             return None
 
         ret = super().keypress(size, key)
@@ -464,11 +470,12 @@ class _EpisodesListItem(_BasicListItem):
 
 class _ShowsList(_BasicList):
 
-    def __init__(self, app):
+    def __init__(self, app, search_provider):
         super(_ShowsList, self).__init__('Shows', 'Loading shows...')
         self._app = app
         self._marked = None
         self._loading = False
+        self._search_provider = search_provider
         self._app.subscribe('new-episodes', self._new_episodes)
 
     def _focus_changed(self, item):
@@ -495,8 +502,12 @@ class _ShowsList(_BasicList):
 
 class _EpisodesList(_BasicList):
 
-    def __init__(self, app):
-        super(_EpisodesList, self).__init__('Episodes', 'Please select a show.')
+    def __init__(self, app, search_provider):
+        super(_EpisodesList, self).__init__(
+            'Episodes',
+            'Please select a show.',
+            search_provider=search_provider
+        )
         self._app = app
 
     def _focus_changed(self, item):
@@ -508,10 +519,10 @@ class _EpisodesList(_BasicList):
 
 class _EpisodesBrowser(urwid.Columns):
 
-    def __init__(self, app):
+    def __init__(self, app, search_provider):
         self._app = app
-        self._shows_list = _ShowsList(app)
-        self._episodes_list = _EpisodesList(app)
+        self._shows_list = _ShowsList(app, search_provider)
+        self._episodes_list = _EpisodesList(app, search_provider)
         super(_EpisodesBrowser, self).__init__([self._shows_list,
                                                 self._episodes_list])
 
@@ -656,9 +667,9 @@ class _InfoPane(urwid.Filler):
         self._text.set_text(str(episode))
 
 class _AppBody(urwid.Pile):
-    def __init__(self, app):
+    def __init__(self, app, search_provider):
         self._app = app
-        self._episodes_browser = _EpisodesBrowser(app)
+        self._episodes_browser = _EpisodesBrowser(app, search_provider)
         self._bottom_pane = _BottomPane(app)
         super(_AppBody, self).__init__([('weight', 1, self._episodes_browser),
                                         ('weight', 1, self._bottom_pane)])
@@ -737,11 +748,11 @@ class _MainFrame(urwid.Frame):
         self._ofooter_search_wrap = urwid.AttrMap(self._ofooter_search,
                                                   {None: None})
         self._ofooter_wrap = urwid.AttrMap(self._ofooter_text, 'footer')
-        urwid.connect_signal(self._ofooter_search, 'change',
-                             self._search_input_changed)
+        #urwid.connect_signal(self._ofooter_search, 'change',
+        #                     self._search_input_changed)
 
     def _build_body(self):
-        self._obody = _AppBody(self._app)
+        self._obody = _AppBody(self._app, self)
 
     def set_shows(self, shows):
         self._oshows_list = _ShowsListBox(self._app, shows)
@@ -780,13 +791,16 @@ class _MainFrame(urwid.Frame):
         self._olists.focus_position = 0
         self._set_episodes_info_select()
 
-    def _init_search(self):
+    def init_search(self, searched_object):
+        self._app._logger.debug("Search object is {}".format(searched_object))
+        """
         self._in_search = True
         self._ofooter_search.set_edit_text('')
         self._ofooter_wrap.original_widget = self._ofooter_search_wrap
         self.focus_position = 'footer'
         self._set_header(self._oheader_search)
         self._invalidate()
+        """
 
     def finish_search(self):
         self._in_search = False
@@ -813,7 +827,7 @@ class _MainFrame(urwid.Frame):
         self._ofooter_search_wrap.set_attr_map(attr_map)
 
     def keypress(self, size, key):
-        if key == '/' and not self._in_search:
+        if key == '/' and not self._in_search and False:
             if self.contents['body'] == (self._olists, None):
                 self.focus_shows()
                 self._init_search()
