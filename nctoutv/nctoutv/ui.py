@@ -483,7 +483,9 @@ class _ShowsList(_BasicList):
 
     def _item_selected(self, item):
         self._loading = True
-        self._app._send_get_episodes_request(item.show)
+        show = item.show
+        self._app.publish('status', 'Loading episodes of {}'.format(show.get_title()))
+        self._app._send_get_episodes_request(show)
 
     def _new_episodes(self, show, episodes):
         self._loading = False
@@ -514,7 +516,7 @@ class _EpisodesList(_BasicList):
         self._app.publish('episode-focused', item.episode)
 
     def _item_selected(self, item):
-        self._app._logger.debug("Selected episode: {}".format(item.episode))
+        self._app._logger.debug('Selected episode: {}'.format(item.episode))
 
 
 class _EpisodesBrowser(urwid.Columns):
@@ -547,6 +549,7 @@ class _EpisodesBrowser(urwid.Columns):
 
     def _new_episodes(self, show, episodes):
         self._app._logger.debug("New episodes of {}!".format(show))
+        self._app.publish('status', 'Done loading episodes of {}.'.format(show.get_title()))
         try:
             episodes_sorted = sorted(episodes.values(),
                               key=lambda e: e.AirDateFormated)
@@ -566,6 +569,7 @@ class _EpisodesBrowser(urwid.Columns):
 
     def _new_shows(self, shows):
         self._app._logger.debug('New shows')
+        self._app.publish('status', 'Done loading shows!')
         shows = sorted(shows.values(), key=lambda e: e.get_title())
         shows_items = [_ShowsListItem(x) for x in shows]
         self._shows_list.set_content(shows_items)
@@ -695,6 +699,26 @@ class _AppBody(urwid.Pile):
     def bottom_pane(self):
         return self._bottom_pane
 
+class _Footer(urwid.WidgetPlaceholder):
+
+    def __init__(self, app):
+        self._app = app
+        self._app.subscribe('status', self._status)
+        txt = 'the footer'
+        self._footer_text = urwid.Text(txt)
+        self._footer_text_wrap = urwid.AttrMap(self._footer_text, 'footer')
+
+        self._footer_search = _SearchEdit(self)
+        self._footer_search_wrap = urwid.AttrMap(self._footer_search,
+                                                  {None: None})
+
+        #urwid.connect_signal(self._ofooter_search, 'change',
+        #                     self._search_input_changed)
+        super().__init__(self._footer_text_wrap)
+
+    def _status(self, status):
+        self._footer_text.set_text(status)
+
 class _MainFrame(urwid.Frame):
     def __init__(self, app):
         self._app = app
@@ -704,7 +728,7 @@ class _MainFrame(urwid.Frame):
         self._in_search = False
         super().__init__(header=self._oheader_wrap,
                          body=self._obody,
-                         footer=self._ofooter_wrap)
+                         footer=self._footer)
 
     def _get_version(self):
         return self._app.get_version()
@@ -742,14 +766,7 @@ class _MainFrame(urwid.Frame):
         self._oloading_body = urwid.Filler(txt, 'middle')
 
     def _build_footer(self):
-        txt = 'the footer'
-        self._ofooter_text = urwid.Text(txt)
-        self._ofooter_search = _SearchEdit(self)
-        self._ofooter_search_wrap = urwid.AttrMap(self._ofooter_search,
-                                                  {None: None})
-        self._ofooter_wrap = urwid.AttrMap(self._ofooter_text, 'footer')
-        #urwid.connect_signal(self._ofooter_search, 'change',
-        #                     self._search_input_changed)
+        self._footer = _Footer(self._app)
 
     def _build_body(self):
         self._obody = _AppBody(self._app, self)
@@ -763,10 +780,10 @@ class _MainFrame(urwid.Frame):
         self._show_lists()
 
     def set_status_msg(self, msg):
-        self._ofooter_text.set_text(msg)
+        self._app.publish('status', msg)
 
     def set_status_msg_okay(self):
-        self._ofooter_text.set_text('Okay')
+        self.set_status_msg('okay')
 
     def set_episodes(self, episodes, show):
         self._oepisodes_box.set_episodes(episodes, show)
