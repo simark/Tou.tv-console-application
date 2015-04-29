@@ -343,22 +343,6 @@ class _ShowInfo(urwid.LineBox):
         self._text.set_text(markup)
 
 """
-class _SearchEdit(urwid.Edit):
-    def __init__(self, frame):
-        self._frame = frame
-        super().__init__('/')
-
-    def keypress(self, size, key):
-        if key == 'f3':
-            self._frame.do_search_next(self.edit_text)
-        elif key in ['enter', 'esc']:
-            self._frame.finish_search()
-        else:
-            # unhandled keys; we do not return to stop propagation here
-            super().keypress(size, key)
-
-        return None
-
 
 class _EnhancedListBox(urwid.ListBox):
 
@@ -409,13 +393,19 @@ class _BasicList(urwid.LineBox):
         ''' To be overriden by child classes. '''
         pass
 
+    def search_finish(self, text):
+        pass
+
+    def search_progress(self, text, skip):
+        pass
+
     def keypress(self, size, key):
         if key in ['enter', 'right']:
             self._item_selected(self._list.focus.original_widget)
             return None
         elif key in ['/'] and self._search_provider is not None:
             self._app._logger.debug('Should initiate search')
-            self._search_provider.init_search(self)
+            self._search_provider.search_init(self)
             return None
 
         ret = super().keypress(size, key)
@@ -699,25 +689,52 @@ class _AppBody(urwid.Pile):
     def bottom_pane(self):
         return self._bottom_pane
 
+
+class _SearchEdit(urwid.Edit):
+    def __init__(self, frame):
+        super().__init__('/')
+        self._frame = frame
+        urwid.connect_signal(self, 'change', self._input_changed)
+
+    def _input_changed(self, _, __):
+        self._frame.search_progress(self.edit_text, False)
+
+    def keypress(self, size, key):
+        if key == 'f3':
+            self._frame.search_progress(self.edit_text, True)
+        elif key in ['enter', 'esc']:
+            self._frame.search_finish(self.edit_text)
+        else:
+            # unhandled keys; we do not return to stop propagation here
+            super().keypress(size, key)
+
+        return None
+
+
 class _Footer(urwid.WidgetPlaceholder):
 
-    def __init__(self, app):
+    def __init__(self, app, main_frame):
         self._app = app
         self._app.subscribe('status', self._status)
-        txt = 'the footer'
-        self._footer_text = urwid.Text(txt)
+        
+        self._footer_text = urwid.Text('the footer')
         self._footer_text_wrap = urwid.AttrMap(self._footer_text, 'footer')
 
-        self._footer_search = _SearchEdit(self)
+        self._footer_search = _SearchEdit(main_frame)
         self._footer_search_wrap = urwid.AttrMap(self._footer_search,
                                                   {None: None})
 
-        #urwid.connect_signal(self._ofooter_search, 'change',
-        #                     self._search_input_changed)
         super().__init__(self._footer_text_wrap)
 
     def _status(self, status):
         self._footer_text.set_text(status)
+        
+    def search_mode(self):
+        self.original_widget = self._footer_search_wrap
+        
+    def status_mode(self):
+        self.original_widget = self._footer_text_wrap
+        
 
 class _MainFrame(urwid.Frame):
     def __init__(self, app):
@@ -725,7 +742,7 @@ class _MainFrame(urwid.Frame):
         self._build_header()
         self._build_body()
         self._build_footer()
-        self._in_search = False
+        self._search_target = None
         super().__init__(header=self._oheader_wrap,
                          body=self._obody,
                          footer=self._footer)
@@ -766,7 +783,7 @@ class _MainFrame(urwid.Frame):
         self._oloading_body = urwid.Filler(txt, 'middle')
 
     def _build_footer(self):
-        self._footer = _Footer(self._app)
+        self._footer = _Footer(self._app, self)
 
     def _build_body(self):
         self._obody = _AppBody(self._app, self)
@@ -808,31 +825,38 @@ class _MainFrame(urwid.Frame):
         self._olists.focus_position = 0
         self._set_episodes_info_select()
 
-    def init_search(self, searched_object):
-        self._app._logger.debug("Search object is {}".format(searched_object))
-        """
-        self._in_search = True
-        self._ofooter_search.set_edit_text('')
-        self._ofooter_wrap.original_widget = self._ofooter_search_wrap
+    def search_init(self, search_target):
+        assert not self.searching
+        self._app._logger.debug("Search target is {}".format(search_target))
+
+        self._search_target = search_target
         self.focus_position = 'footer'
+        self._footer.search_mode()
         self._set_header(self._oheader_search)
-        self._invalidate()
-        """
 
-    def finish_search(self):
-        self._in_search = False
-        self._oshows_list.finish_search()
-        self.set_status_msg_okay()
-        self._ofooter_wrap.original_widget = self._ofooter_text
+    @property
+    def searching(self):
+        return self._search_target is not None
+
+    def search_progress(self, text, skip):
+        assert self.searching
+        self._app._logger.debug('Search progress text={} skip={}'.format(text, skip))
+        self._search_target.search_progress(text, skip)
+
+    def search_finish(self, text):
+        assert self.searching
+        self._app._logger.debug('Search finished text={}'.format(text))
+        self._search_target.search_finish(text)
+
+        self._search_target = None
         self.focus_position = 'body'
+        self._footer.status_mode()
         self._set_header(self._oheader_main)
-        self._invalidate()
-
-    def do_search_next(self, query):
-        self._oshows_list.do_search(query, next=True)
 
     def _search_input_changed(self, _, new_text):
-        assert(self._in_search)
+        assert self.searching
+        self.search_progress(new_text, False)
+        return
         found = self._oshows_list.do_search(new_text)
 
         if found:
@@ -844,13 +868,7 @@ class _MainFrame(urwid.Frame):
         self._ofooter_search_wrap.set_attr_map(attr_map)
 
     def keypress(self, size, key):
-        if key == '/' and not self._in_search and False:
-            if self.contents['body'] == (self._olists, None):
-                self.focus_shows()
-                self._init_search()
-
-            return None
-        elif key == 'f5':
+        if key == 'f5':
             self._obody.bottom_pane.show_page('info')
         elif key == 'f6':
             self._obody.bottom_pane.show_page('downloads')
