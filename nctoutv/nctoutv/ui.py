@@ -406,6 +406,7 @@ class _BasicList(urwid.LineBox):
         elif key in ['/'] and self._search_provider is not None:
             self._app._logger.debug('Should initiate search')
             self._search_provider.search_init(self)
+            self._list.focus.set_attr_map({None: 'search-result'})
             return None
 
         ret = super().keypress(size, key)
