@@ -696,8 +696,8 @@ class _SearchEdit(urwid.Edit):
         self._frame = frame
         urwid.connect_signal(self, 'change', self._input_changed)
 
-    def _input_changed(self, _, __):
-        self._frame.search_progress(self.edit_text, False)
+    def _input_changed(self, _, text):
+        self._frame.search_progress(text, False)
 
     def keypress(self, size, key):
         if key == 'f3':
