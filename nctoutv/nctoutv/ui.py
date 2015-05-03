@@ -410,10 +410,8 @@ class _BasicList(urwid.LineBox):
         items.rotate(-(self._list.focus_position + skip))
 
         for index, widget in items:
-            text = widget.original_widget.get_text()[0]
-
-            if query in text:
-
+            label = widget.original_widget.get_text()[0].lower()
+            if query in label:
                 self._list.focus_position = index
                 self._list.focus.set_attr_map({None: 'search-result'})
                 return True
@@ -718,6 +716,9 @@ class _SearchEdit(urwid.Edit):
         self._frame = frame
         urwid.connect_signal(self, 'change', self._input_changed)
 
+    def reset(self):
+        self.set_edit_text('')
+
     def _input_changed(self, _, text):
         self._frame.search_progress(text, False)
 
@@ -753,6 +754,7 @@ class _Footer(urwid.WidgetPlaceholder):
         
     def search_mode(self):
         self.original_widget = self._footer_search_wrap
+        self._footer_search.reset()
         
     def status_mode(self):
         self.original_widget = self._footer_text_wrap
