@@ -394,10 +394,31 @@ class _BasicList(urwid.LineBox):
         pass
 
     def search_finish(self, text):
-        pass
+        self._list.focus.set_attr_map({None: None})
 
     def search_progress(self, text, skip):
-        pass
+        # reset the previous search result
+        self._list.focus.set_attr_map({None: None})
+        query = text.lower().strip()
+
+        if len(query) == 0:
+            return
+
+        # start the search at the current element (next one if skip is True)
+        skip = 1 if skip else 0
+        items = collections.deque(enumerate(self._walker))
+        items.rotate(-(self._list.focus_position + skip))
+
+        for index, widget in items:
+            text = widget.original_widget.get_text()[0]
+
+            if query in text:
+
+                self._list.focus_position = index
+                self._list.focus.set_attr_map({None: 'search-result'})
+                return True
+
+        return False
 
     def keypress(self, size, key):
         if key in ['enter', 'right']:
@@ -717,7 +738,7 @@ class _Footer(urwid.WidgetPlaceholder):
     def __init__(self, app, main_frame):
         self._app = app
         self._app.subscribe('status', self._status)
-        
+
         self._footer_text = urwid.Text('the footer')
         self._footer_text_wrap = urwid.AttrMap(self._footer_text, 'footer')
 
