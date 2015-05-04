@@ -713,7 +713,7 @@ class _AppBody(urwid.Pile):
 class _SearchEdit(urwid.AttrMap):
     def __init__(self, frame):
         self._frame = frame
-        self._edit = urwid.Edit('/')
+        self._edit = urwid.Edit('search: ')
         urwid.connect_signal(self._edit, 'change', self._input_changed)
         super().__init__(self._edit, {None: None})
 
