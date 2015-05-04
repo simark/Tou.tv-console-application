@@ -402,7 +402,7 @@ class _BasicList(urwid.LineBox):
         query = text.lower().strip()
 
         if len(query) == 0:
-            return
+            return True
 
         # start the search at the current element (next one if skip is True)
         skip = 1 if skip else 0
@@ -710,23 +710,28 @@ class _AppBody(urwid.Pile):
         return self._bottom_pane
 
 
-class _SearchEdit(urwid.Edit):
+class _SearchEdit(urwid.AttrMap):
     def __init__(self, frame):
-        super().__init__('/')
         self._frame = frame
-        urwid.connect_signal(self, 'change', self._input_changed)
+        self._edit = urwid.Edit('/')
+        urwid.connect_signal(self._edit, 'change', self._input_changed)
+        super().__init__(self._edit, {None: None})
 
     def reset(self):
-        self.set_edit_text('')
+        self._edit.set_edit_text('')
 
     def _input_changed(self, _, text):
-        self._frame.search_progress(text, False)
+        found = self._frame.search_progress(text, False)
+        if found:
+            self.set_attr_map({None: None})
+        else:
+            self.set_attr_map({None: 'footer-not-found'})
 
     def keypress(self, size, key):
         if key == 'f3':
-            self._frame.search_progress(self.edit_text, True)
+            self._frame.search_progress(self._edit.edit_text, True)
         elif key in ['enter', 'esc']:
-            self._frame.search_finish(self.edit_text)
+            self._frame.search_finish(self._edit.edit_text)
         else:
             # unhandled keys; we do not return to stop propagation here
             super().keypress(size, key)
@@ -865,7 +870,7 @@ class _MainFrame(urwid.Frame):
     def search_progress(self, text, skip):
         assert self.searching
         self._app._logger.debug('Search progress text={} skip={}'.format(text, skip))
-        self._search_target.search_progress(text, skip)
+        return self._search_target.search_progress(text, skip)
 
     def search_finish(self, text):
         assert self.searching
@@ -876,20 +881,6 @@ class _MainFrame(urwid.Frame):
         self.focus_position = 'body'
         self._footer.status_mode()
         self._set_header(self._oheader_main)
-
-    def _search_input_changed(self, _, new_text):
-        assert self.searching
-        self.search_progress(new_text, False)
-        return
-        found = self._oshows_list.do_search(new_text)
-
-        if found:
-            attr_map = {None: None}
-        else:
-            # TODO: do not highlight the caption (/)
-            attr_map = {None: 'footer-not-found'}
-
-        self._ofooter_search_wrap.set_attr_map(attr_map)
 
     def keypress(self, size, key):
         if key == 'f5':
