@@ -627,13 +627,18 @@ class _BottomPane(urwid.LineBox):
         txt = urwid.Filler(urwid.Text('DOWNLOADS :D'), valign='top')
         self._pages['downloads'] = (txt, 'Downloads')
 
+    def get_current_page_name(self):
+        return self._current_page_name
+
     def show_page(self, page_name):
         if page_name is None:
             self._wrap.original_widget = None
+            self._current_page_name = None
         elif page_name in self._pages:
             page = self._pages[page_name]
             self.set_title(page[1])
             self._wrap.original_widget = page[0]
+            self._current_page_name = page_name
         else:
             # TODO: log
             pass
@@ -690,18 +695,29 @@ class _AppBody(urwid.Pile):
 
     def _hide_bottom_pane(self):
         self.contents[1] = (self._bottom_pane, ('weight', 0))
+        self._bottom_pane.show_page(None)
 
     def _show_bottom_pane(self, page_name):
         self.contents[1] = (self._bottom_pane, ('weight', 1))
         self._bottom_pane.show_page(page_name)
 
+    def _toggle_bottom_pane(self, page_name):
+        """Show or hide a page in the bottom page.
+
+        Hide the bottom pane if the current page is page_name. Show
+        the page otherwise.
+        """
+        current_page_name = self._bottom_pane.get_current_page_name()
+        if current_page_name == page_name:
+            self._hide_bottom_pane()
+        else:
+            self._show_bottom_pane(page_name)
+
     def keypress(self, size, key):
         if key in ['f1']:
-            self._hide_bottom_pane()
+            self._toggle_bottom_pane('info')
         elif key in ['f2']:
-            self._show_bottom_pane('info')
-        elif key in ['f3']:
-            self._show_bottom_pane('downloads')
+            self._toggle_bottom_pane('downloads')
         else:
             return super().keypress(size, key)
 
