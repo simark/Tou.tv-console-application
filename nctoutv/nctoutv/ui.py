@@ -1,6 +1,7 @@
 import collections
 import re
 import urwid
+import time
 
 """
 class _EpisodeWidget(urwid.Text):
@@ -663,6 +664,8 @@ class _InfoPane(urwid.Filler):
         if country is None:
             country = 'unknown'
 
+        url = show.get_url()
+
         year = show.get_year()
         year_markup = []
 
@@ -674,17 +677,62 @@ class _InfoPane(urwid.Filler):
         ]
         markup += year_markup
         markup += [
+            '\n\n',
+            show.get_description(),
+            '\n\n',
+            ('show-info', 'Network'), ': ', network, '\n',
+            ('show-info', 'Country'), ': ', country, '\n',
+            ('show-info', 'URL'), ': ', url,
+        ]
+        
+        self._text.set_text(markup)
+
+    def _episode_focused(self, episode):
+        title = episode.get_title()
+
+        date = time.strptime(episode.AirDateFormated, '%Y%m%d')
+        date = time.strftime('%a, %d %b %Y', date)
+
+        season = episode.get_season_number()
+        num = episode.get_episode_number()
+        sae = 'Season {}, episode {}'.format(season, num)
+
+        length = '{}:{}'.format(*episode.get_length())
+        url = episode.get_url()
+
+        desc = episode.get_description()
+
+        markup = [
+            ('show-info-title', title), '\n',
+            '\n',
+            desc, '\n',
+            '\n',
+            ('show-info', 'Episode'), ': ', sae, '\n',
+            ('show-info', 'Length'), ': ', length, '\n',
+            ('show-info', 'Date'), ': ', date, '\n',
+            ('show-info', 'URL'), ': ', url, '\n',
+        ]
+
+        self._text.set_text(markup)
+"""
+
+        year = show.get_year()
+        year_markup = []
+
+        if year is not None:
+            year_markup = ['(', year, ')']
+
+        
+        markup += year_markup
+        markup += [
             '\n',
             ('show-info', 'Network'), ': ', network, '\n',
             ('show-info', 'Country'), ': ', country, '\n',
             '\n',
             show.get_description(),
         ]
-        self._text.set_text(markup)
-
-    def _episode_focused(self, episode):
-        self._text.set_text(str(episode))
-
+        
+"""
 class _AppBody(urwid.Pile):
     def __init__(self, app, search_provider):
         self._app = app

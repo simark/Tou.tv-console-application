@@ -416,7 +416,8 @@ class Episode(_Bo, _ThumbnailProvider):
         if self.Url is None:
             return None
 
-        return '{}/{}'.format(toutv.config.TOUTV_BASE_URL, self.Url)
+		# The Url field already contains the leading /.
+        return '{}{}'.format(toutv.config.TOUTV_BASE_URL, self.Url)
 
     def get_season_number(self):
         return self.SeasonNumber
