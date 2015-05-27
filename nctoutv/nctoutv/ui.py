@@ -563,7 +563,7 @@ class _EpisodesBrowser(urwid.Columns):
         self._app.publish('status', 'Done loading episodes of {}.'.format(show.get_title()))
         try:
             episodes_sorted = sorted(episodes.values(),
-                              key=lambda e: e.AirDateFormated)
+                              key=lambda e: (e.AirDateFormated, e.get_sae()))
         except:
             episodes_sorted = sorted(episodes.values(),
                               key=lambda e: e.get_title())
