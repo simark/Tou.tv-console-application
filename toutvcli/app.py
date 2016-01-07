@@ -476,7 +476,8 @@ class App:
         infos_lines = []
         air_date = episode.get_air_date()
         if air_date is not None:
-            line = '  * Air date: {}'.format(air_date)
+            formatted_air_date = air_date.strftime('%x')
+            line = '  * Air date: {}'.format(formatted_air_date)
             infos_lines.append(line)
         infos_lines.append('  * Available qualities:')
         for quality in qualities:
