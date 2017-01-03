@@ -26,6 +26,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import toutv.bos as bos
+import re
 
 
 class Mapper:
@@ -35,6 +36,27 @@ class Mapper:
 
 
 class JsonMapper(Mapper):
+
+    def show_dto_to_bo(self, dto):
+        """Convert a show data transfer object to a business object.
+
+        Convert dto, a Python dict obtained by parsing the JSON fetched from
+        Tou.TV, to an Emission object."""
+
+        print(dto['Key'])
+
+        show = bos.Emission()
+
+        # I am not sure we need both the key and id (or any of them), but let's
+        # keep them both for now.
+        show.Key = dto['Key']
+        show.Id = int(re.match(r'program-(\d+)', dto['Key']).group(1))
+
+        show.Title = dto['Title']
+        show.Url = dto['Url']
+
+        return show
+
 
     def dto_to_bo(self, dto, klass):
         bo = self.create(klass)

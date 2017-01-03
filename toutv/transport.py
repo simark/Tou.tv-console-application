@@ -84,8 +84,34 @@ class JsonTransport(Transport):
         json = self._do_query_json_url(url, params)
         return json['d']
 
+    def _get_shows_from_section(self, section):
+        """Get shows from a browse-able section from Tou.TV."""
+        shows = []
+        url = 'http://ici.tou.tv/presentation/section/{}'.format(section)
+
+        result = self._do_query_json_url(url)
+
+        # Sections are divided in multiple lineups (Series, Films, etc), but we
+        # don't really care about that, so merge all of them in a single list.
+        for lineup in result['Lineups']:
+            for show_dto in lineup['LineupItems']:
+                # A section can contain a bit of everything, but we only want shows...
+                if show_dto['Key'].startswith('program-'):
+                    show = self._mapper.show_dto_to_bo(show_dto)
+                    shows.append(show)
+
+        return shows
+
     def get_emissions(self):
-        emissions = {}
+
+        shows = []
+
+        # a-z contains pretty much everything except from the children stuff.
+        shows += self._get_shows_from_section('a-z')
+        shows += self._get_shows_from_section('jeunesse')
+
+        return shows
+
 
         # All emissions, including those only available in Extra
         # We don't have much information about them, except their id, title, and URL, but that is enough to be able to fetch them at least.

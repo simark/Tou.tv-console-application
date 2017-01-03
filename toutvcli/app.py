@@ -546,21 +546,15 @@ command. The episode can be specified using its name, number or id.
             print('\n')
 
     def _print_list_emissions(self, _all=False):
-        if _all:
-            emissions = self._toutv_client.get_emissions()
-        else:
-            repertoire = self._toutv_client.get_page_repertoire()
-            emissions = repertoire.get_emissions()
+        emissions = self._toutv_client.get_emissions()
 
-        emissions_keys = list(emissions.keys())
+        def title_sort_func(emission):
+            return locale.strxfrm(emission.get_title())
 
-        def title_sort_func(ekey):
-            return locale.strxfrm(emissions[ekey].get_title())
-
-        emissions_keys.sort(key=title_sort_func)
-        for ekey in emissions_keys:
-            title = emissions[ekey].get_title()
-            print('{} - {}'.format(ekey, title))
+        for emission in sorted(emissions, key=title_sort_func):
+            title = emission.get_title()
+            id = emission.get_id()
+            print('{} - {}'.format(id, title))
 
     def _print_list_episodes(self, emission):
         episodes = self._toutv_client.get_emission_episodes(emission, True)

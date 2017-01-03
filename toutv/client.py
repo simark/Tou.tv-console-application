@@ -91,8 +91,8 @@ class Client:
             emissions = self._transport.get_emissions()
             self._cache.set_emissions(emissions)
 
-        self._set_bos_proxies(emissions.values())
-        self._set_bos_auth(emissions.values())
+        self._set_bos_proxies(emissions)
+        self._set_bos_auth(emissions)
 
         return emissions
 

@@ -221,6 +221,8 @@ class Emission(_AbstractEmission, _ThumbnailProvider):
         self.SubCategoryType = None
         self.Title = None
         self.TitleIndex = None
+
+        # The path part of the show URL (e.g. /les-sentinelles-de-lair)
         self.Url = None
         self.Year = None
         self._episodes = {}
