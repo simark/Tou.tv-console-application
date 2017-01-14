@@ -87,6 +87,7 @@ class App:
         args = self._argparser.parse_args(self._args)
 
         self._verbose = args.verbose
+        self._log_file = args.log_file
 
         if 'quiet' in args:
             if args.quiet:
@@ -101,7 +102,10 @@ class App:
         no_cache = args.no_cache_global or args.no_cache
 
         if self._verbose:
-            logging.basicConfig(level=logging.DEBUG)
+            if self._log_file:
+                logging.basicConfig(level=logging.DEBUG, filename=self._log_file)
+            else:
+                logging.basicConfig(level=logging.DEBUG)
 
         if args.build_client:
             self._toutv_client = self._build_toutv_client(no_cache)
@@ -182,6 +186,8 @@ class App:
                        dest='no_cache_global', help='Disable cache')
         p.add_argument('-v', '--verbose', action='store_true',
                        help='Verbose output')
+        p.add_argument('--log-file', type=str,
+                       help='File file to redirect the verbose output to.')
         p.add_argument('-V', '--version', action='version',
                        version='%(prog)s v{}'.format(__version__))
 
@@ -404,7 +410,7 @@ command. The episode can be specified using its name, number or id.
 
         if self._verbose:
             tpl = '_parse_show_episode_from_args returns: emission {} and episode {}'
-            print(tpl.format(show_spec, episode_spec))
+            self._logger.debug(tpl.format(show_spec, episode_spec))
 
         return show_spec, episode_spec
 
@@ -672,7 +678,7 @@ command. The episode can be specified using its name, number or id.
         return closest.bitrate
 
     def _print_cur_pb(self, done_segments, done_bytes, force):
-        if self._verbose:
+        if self._verbose and not self._log_file:
             return
 
         cur_time = time.time()
